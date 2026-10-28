@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GROHE Cup</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--lixil:#e95d08;--lixil-dark:#c44e06;--lixil-light:#fdf0e8;--lixil-mid:#fad5bb;--border:#e5e7eb;--surface:#f9fafb;--white:#fff;--text:#111827;--muted:#6b7280;--green:#15803d;--red:#b91c1c}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:var(--text);background:var(--surface);min-height:100vh}
+  header{background:var(--lixil);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px}
+  header img{height:38px;background:#fff;border-radius:6px;padding:3px 6px}
+  header h1{font-size:18px;font-weight:700;flex:1}
+  header .who{font-size:12px;opacity:.95}
+  header button{background:transparent;border:1px solid rgba(255,255,255,.7);color:#fff;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+  .adminbar{background:#1f2937;color:#fff;padding:6px 16px;font-size:12px;display:flex;gap:10px;align-items:center}
+  .adminbar button{background:#374151;color:#fff;border:0;border-radius:5px;padding:3px 9px;cursor:pointer;font-size:12px}
+  main{max-width:880px;margin:0 auto;padding:16px}
+  .card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px}
+  .card h2{font-size:16px;margin-bottom:6px}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  label{display:block;font-size:12px;font-weight:600;margin:10px 0 4px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font:inherit;background:#fff}
+  textarea{min-height:70px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--lixil-mid);border-color:var(--lixil)}
+  .btn{padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);font-family:inherit}
+  .btn.primary{background:var(--lixil);border-color:var(--lixil);color:#fff}
+  .btn.primary:hover{background:var(--lixil-dark)}
+  .btn.danger{color:var(--red);border-color:#fecaca}
+  .btn.sm{padding:4px 9px;font-size:12px}
+  .btn:disabled{opacity:.55;cursor:wait}
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:14px;overflow-x:auto}
+  .tab{padding:9px 14px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;background:none;border-top:0;border-left:0;border-right:0;font-size:14px}
+  .tab.on{color:var(--lixil);border-bottom-color:var(--lixil)}
+  .msg{padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13px}
+  .msg.err{background:#fef2f2;color:var(--red)} .msg.ok{background:#f0fdf4;color:var(--green)} .msg.info{background:var(--lixil-light);color:var(--lixil-dark)}
+  .row{display:flex;gap:10px;flex-wrap:wrap} .row>*{flex:1;min-width:150px}
+  .act{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border)}
+  .act:first-child{border-top:0}
+  .pts{background:var(--lixil-light);color:var(--lixil-dark);font-weight:700;border-radius:99px;padding:2px 10px;font-size:12px;white-space:nowrap}
+  .tag{display:inline-block;font-size:11px;background:#eef2ff;color:#3730a3;border-radius:5px;padding:1px 6px;margin-left:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);padding:6px 8px;background:var(--surface)}
+  td{padding:7px 8px;border-top:1px solid var(--border);vertical-align:top}
+  tr.me td{background:var(--lixil-light);font-weight:600}
+  tr.gone td{opacity:.5;text-decoration:line-through}
+  .bar{height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin:6px 0}
+  .bar>i{display:block;height:100%;background:var(--lixil)}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .seg button{padding:6px 12px;border:0;background:#fff;cursor:pointer;font-weight:600;font-size:13px}
+  .seg button.on{background:var(--lixil);color:#fff}
+  .center{max-width:420px;margin:40px auto}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+  .stat{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px}
+  .stat b{display:block;font-size:24px;color:var(--lixil)}
+  footer{max-width:880px;margin:0 auto;padding:6px 16px 30px;font-size:12px;color:var(--muted)}
+  footer a{color:var(--lixil-dark)}
+  .hidden{display:none!important}
+  .editrow{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:#fff}
+  .fieldrow{display:flex;gap:6px;margin-bottom:6px} .fieldrow input,.fieldrow select{flex:1}
+  details>summary{cursor:pointer;font-weight:700;padding:8px 0}
+</style>
+</head>
+<body>
+<header>
+  <img src="data:image/png;base64,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" alt="GROHE">
+  <h1>GROHE Cup</h1>
+  <span class="who" id="who"></span>
+  <button id="signout" class="hidden">Sign out</button>
+</header>
+<div class="adminbar hidden" id="adminbar">Admin mode <span style="flex:1"></span><button id="adminexit">Exit admin</button></div>
+<main id="app"></main>
+<footer id="foot"></footer>
+
+<script>
+// ============ SETTINGS: paste these two from Supabase (Project Settings -> API) ============
+const SUPABASE_URL = 'https://hakdaqfbvyovlubsgmrv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BaUZq_Vuy2bKOIqT4ahufg_vX98t6uA';
+// ===========================================================================================
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const S = { email: null, rep: null, cat: null, my: null, tab: 'submit', lbMode: 'reps', lbMonth: '', admin: null, adminCode: null, adminTab: 'review' };
+let CONTACT = { name: 'Margaret Cook', email: 'margaret.cook@lixil.com' };
+
+async function rpc(name, args) {
+  const { data, error } = await db.rpc(name, args);
+  if (error) throw new Error(error.message);
+  return data;
+}
+const fmtDate = d => d ? new Date(String(d).length <= 10 ? d + 'T12:00:00' : d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+const fmtMonth = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+const msg = (kind, t) => `<div class="msg ${kind}">${esc(t)}</div>`;
+function footer() {
+  $('#foot').innerHTML = `Questions or issues? Contact <a href="mailto:${esc(CONTACT.email)}">${esc(CONTACT.name)}</a> (${esc(CONTACT.email)}). ` +
+    `<a href="#" id="adminlink">Admin</a>`;
+  $('#adminlink').onclick = e => { e.preventDefault(); adminLogin(); };
+}
+
+// ---------------- sign in / register ----------------
+function showGate(err) {
+  $('#who').textContent = ''; $('#signout').classList.add('hidden');
+  $('#app').innerHTML = `<div class="center card"><h2>Welcome to the GROHE Cup</h2>
+    <p class="muted">Enter your work email to get started.</p>
+    <label>Work email</label><input id="em" type="email" placeholder="you@yourcompany.com" autocomplete="email">
+    <div id="gerr">${err ? msg('err', err) : ''}</div>
+    <p style="margin-top:12px"><button class="btn primary" id="go">Continue</button></p></div>`;
+  const go = async () => {
+    const e = $('#em').value.trim().toLowerCase(); if (!e) return;
+    $('#go').disabled = true;
+    try {
+      const r = await rpc('cup_check_email', { p_email: e });
+      if (!r.allowed) { $('#gerr').innerHTML = msg('err', `That email isn't on the approved list. Contact ${CONTACT.name} (${CONTACT.email}) to get access.`); $('#go').disabled = false; return; }
+      S.email = e; sessionStorage.setItem('cup_email', e);
+      if (r.registered) { S.rep = r.rep; await enter(); } else showRegister(r.agency);
+    } catch (x) { $('#gerr').innerHTML = msg('err', x.message); $('#go').disabled = false; }
+  };
+  $('#go').onclick = go; $('#em').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function showRegister(agency, existing) {
+  const r = existing || {};
+  $('#signout').classList.remove('hidden');
+  $('#app').innerHTML = `<div class="center card" style="max-width:520px"><h2>${existing ? 'Update your profile' : 'Register for the GROHE Cup'}</h2>
+    <p class="muted">One quick step, then you can start earning points.</p>
+    <label>Full name</label><input id="rn" value="${esc(r.name || '')}">
+    <div class="row"><div><label>Email</label><input value="${esc(S.email)}" disabled></div>
+    <div><label>Agency</label><input value="${esc(agency || r.agency || '')}" disabled></div></div>
+    <label>Sales focus</label><select id="rf"><option value="">Choose...</option>
+      ${['Showroom', 'Counter', 'Projects', 'All'].map(o => `<option ${r.focus === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
+    <label>Anything else you cover? <span class="muted">(optional)</span></label><input id="rx" value="${esc(r.focus_note || '')}">
+    <label>Market area you cover</label><input id="rm" placeholder="e.g. Atlanta metro, North Texas" value="${esc(r.market || '')}">
+    <div id="rerr"></div>
+    <p style="margin-top:12px"><button class="btn primary" id="rg">${existing ? 'Save' : 'Register'}</button></p></div>`;
+  $('#rg').onclick = async () => {
+    if (!$('#rn').value.trim() || !$('#rf').value || !$('#rm').value.trim()) { $('#rerr').innerHTML = msg('err', 'Please fill in name, sales focus and market area.'); return; }
+    $('#rg').disabled = true;
+    try {
+      const out = await rpc('cup_register', { p_email: S.email, p_name: $('#rn').value, p_focus: $('#rf').value, p_focus_note: $('#rx').value, p_market: $('#rm').value });
+      S.rep = out.rep; await enter();
+    } catch (x) { $('#rerr').innerHTML = msg('err', x.message); $('#rg').disabled = false; }
+  };
+}
+async function enter() {
+  $('#who').textContent = S.rep.name + ' · ' + S.rep.agency; $('#signout').classList.remove('hidden');
+  await refresh(); render();
+}
+async function refresh() {
+  [S.cat, S.my] = await Promise.all([rpc('cup_catalog', { p_email: S.email }), rpc('cup_my', { p_email: S.email })]);
+  CONTACT = { name: S.cat.config.contact_name || CONTACT.name, email: S.cat.config.contact_email || CONTACT.email }; footer();
+}
+
+// ---------------- main app ----------------
+function render() {
+  if (S.admin) return renderAdmin();
+  const tabs = [['submit', 'Submit activity'], ['board', 'Leaderboard'], ['mine', 'My activity'], ['swag', 'Swag & prizes']];
+  $('#app').innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div><div id="pane"></div>`;
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.tab = b.dataset.t; render(); });
+  ({ submit: paneSubmit, board: paneBoard, mine: paneMine, swag: paneSwag })[S.tab]();
+}
+function pre() {
+  const start = S.cat.config.program_start, end = S.cat.config.program_end;
+  if (S.cat.today < start) return msg('info', `The program kicks off ${fmtDate(start)}. You're registered, so you're all set. Submissions open then.`);
+  if (S.cat.today > end) return msg('info', `The program ended ${fmtDate(end)}. Thanks for playing!`);
+  return '';
+}
+function paneSubmit() {
+  const phases = S.cat.phases;
+  $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)} <span class="muted small">${p.ends_on ? 'through ' + fmtDate(p.ends_on) : 'open'}</span></h2>
+    ${p.open ? '' : msg('info', 'This phase has closed.')}
+    ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div></div>
+      <div style="text-align:right"><span class="pts">${a.points} pt${a.points === 1 ? '' : 's'}</span><br><br>
+      ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? `<button class="btn primary sm" data-a="${a.id}">Submit</button>` : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div>`).join('')
+    : '<div class="card muted">Activities will show up here when the program starts.</div>');
+  document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => openForm(b.dataset.a));
+}
+function openForm(id) {
+  const a = S.cat.phases.flatMap(p => p.activities).find(x => x.id === id);
+  $('#pane').innerHTML = `<div class="card"><button class="btn sm" id="back">&larr; Back</button>
+    <h2 style="margin-top:10px">${esc(a.title)} <span class="pts">${a.points} pt${a.points === 1 ? '' : 's'}</span></h2>
+    <p class="muted">${esc(a.description || '')}</p>
+    ${a.fields.map(f => `<label>${esc(f.label)}${f.required ? ' *' : ''}</label>` + (f.type === 'longtext' ? `<textarea data-k="${esc(f.key)}"></textarea>` : `<input data-k="${esc(f.key)}" type="${f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}">`)).join('')}
+    ${a.file_mode !== 'none' ? `<label>${esc(a.file_label || 'Photo / file')}${a.file_mode === 'required' ? ' *' : ' (optional)'}</label><input type="file" id="file" accept="image/*,application/pdf"><div class="muted small">Max 10 MB. Only LIXIL admins can see your upload.</div>` : ''}
+    <div id="ferr"></div><p style="margin-top:14px"><button class="btn primary" id="sub">Submit</button></p></div>`;
+  $('#back').onclick = render;
+  $('#sub').onclick = async () => {
+    const data = {}; document.querySelectorAll('[data-k]').forEach(i => data[i.dataset.k] = i.value.trim());
+    const file = $('#file')?.files[0]; let path = null;
+    $('#sub').disabled = true; $('#ferr').innerHTML = '';
+    try {
+      for (const f of a.fields) if (f.required && !data[f.key]) throw new Error('Please fill in: ' + f.label);
+      if (a.file_mode === 'required' && !file) throw new Error('Please attach the file.');
+      if (file) {
+        if (file.size > 10 * 1024 * 1024) throw new Error('That file is over 10 MB. Try a smaller photo.');
+        path = crypto.randomUUID() + '/' + (file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-100) || 'upload');
+        const up = await db.storage.from('cup-proofs').upload(path, file, { contentType: file.type || 'application/octet-stream' });
+        if (up.error) throw new Error('Upload failed: ' + up.error.message);
+      }
+      const r = await rpc('cup_submit', { p_email: S.email, p_activity: id, p_data: data, p_file: path });
+      await refresh();
+      $('#pane').innerHTML = `<div class="card">${msg('ok', `Submitted! +${r.points} point${r.points === 1 ? '' : 's'}. It's on the leaderboard now.`)}
+        <p style="margin-top:10px"><button class="btn primary" id="again">Submit another</button> <button class="btn" id="lb">See leaderboard</button></p></div>`;
+      $('#again').onclick = () => { S.tab = 'submit'; render(); }; $('#lb').onclick = () => { S.tab = 'board'; render(); };
+    } catch (x) { $('#ferr').innerHTML = msg('err', x.message); $('#sub').disabled = false; }
+  };
+}
+async function paneBoard() {
+  const months = S.cat.swag.map(s => s.month);
+  $('#pane').innerHTML = `<div class="card"><div class="row" style="align-items:center">
+    <div class="seg"><button data-m="reps" class="${S.lbMode === 'reps' ? 'on' : ''}">Reps</button><button data-m="agencies" class="${S.lbMode === 'agencies' ? 'on' : ''}">Agencies</button></div>
+    <select id="lbm" style="max-width:220px"><option value="">Whole program</option>${months.map(m => `<option value="${m}" ${S.lbMonth === m ? 'selected' : ''}>${fmtMonth(m)}</option>`).join('')}</select></div>
+    <div id="lbt" class="muted" style="margin-top:12px">Loading...</div></div>`;
+  document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { S.lbMode = b.dataset.m; paneBoard(); });
+  $('#lbm').onchange = e => { S.lbMonth = e.target.value; paneBoard(); };
+  try {
+    const lb = await rpc('cup_leaderboard', { p_email: S.email, p_month: S.lbMonth || null });
+    if (S.lbMode === 'reps') {
+      const rows = lb.reps.filter(r => r.points > 0 || r.subs > 0);
+      $('#lbt').innerHTML = rows.length ? `<table><tr><th>#</th><th>Rep</th><th>Agency</th><th style="text-align:right">Activities</th><th style="text-align:right">Points</th></tr>
+        ${rows.map((r, i) => `<tr class="${r.name === S.rep.name && r.agency === S.rep.agency ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.agency)}</td><td style="text-align:right">${r.subs}</td><td style="text-align:right"><b>${r.points}</b></td></tr>`).join('')}</table>`
+        : 'No points yet. Be the first on the board!';
+    } else {
+      const rows = lb.agencies.filter(a => a.points > 0 || a.reps > 0);
+      $('#lbt').innerHTML = rows.length ? `<table><tr><th>#</th><th>Agency</th><th style="text-align:right">Reps</th><th style="text-align:right">Bonus</th><th style="text-align:right">Points</th></tr>
+        ${rows.map((a, i) => `<tr class="${a.agency === S.rep.agency ? 'me' : ''}"><td>${i + 1}</td><td>${esc(a.agency)}</td><td style="text-align:right">${a.reps}</td><td style="text-align:right">${a.award_points}</td><td style="text-align:right"><b>${a.points}</b></td></tr>`).join('')}</table>`
+        : 'No agency points yet.';
+    }
+  } catch (x) { $('#lbt').innerHTML = msg('err', x.message); }
+}
+function paneMine() {
+  const m = S.my;
+  $('#pane').innerHTML = `<div class="grid"><div class="stat"><b>${m.total_points}</b>total points</div><div class="stat"><b>${m.submissions.filter(s => s.status === 'counted').length}</b>activities counted</div></div>
+    <div class="card"><h2>Swag of the month progress</h2>${m.swag.map(s => `<div style="margin:10px 0"><b>${fmtMonth(s.month)}</b> &middot; ${esc(s.item_name)}
+      ${s.qualified ? '<span class="tag" style="background:#dcfce7;color:#166534">Qualified!</span>' : ''}
+      <div class="bar"><i style="width:${Math.min(100, s.qualified ? 100 : s.points / Math.max(1, s.threshold) * 100)}%"></i></div>
+      <span class="muted small">${s.points} of ${s.threshold} points this month</span></div>`).join('') || '<p class="muted">Coming soon.</p>'}</div>
+    <div class="card"><h2>My submissions</h2>${m.submissions.length ? `<table><tr><th>Date</th><th>Activity</th><th style="text-align:right">Pts</th></tr>${m.submissions.map(s => `<tr class="${s.status === 'removed' ? 'gone' : ''}"><td>${fmtDate(s.created_at)}</td><td>${esc(s.title)}${s.status === 'removed' ? ' <span class="tag">removed</span>' : ''}</td><td style="text-align:right">${s.points}</td></tr>`).join('')}</table>` : '<p class="muted">Nothing yet. Head to Submit activity!</p>'}
+    ${m.submissions.some(s => s.status === 'removed') ? `<p class="muted small" style="margin-top:8px">Removed items didn't meet the requirements. Questions? Contact ${esc(CONTACT.name)}.</p>` : ''}</div>
+    <p><button class="btn" id="edit">Edit my profile</button></p>`;
+  $('#edit').onclick = () => showRegister(S.rep.agency, S.rep);
+}
+function paneSwag() {
+  const sw = S.cat.swag, pz = S.cat.prizes;
+  const cur = sw.find(s => s.month === S.cat.today.slice(0, 8) + '01') || sw.find(s => s.month >= S.cat.today) || sw[0];
+  $('#pane').innerHTML = `${cur ? `<div class="card" style="border-color:var(--lixil)"><h2>Swag of the month: ${fmtMonth(cur.month)}</h2>
+      <p style="font-size:16px;margin:6px 0"><b>${esc(cur.item_name)}</b></p><p class="muted">${esc(cur.description || '')}</p>
+      <p class="small" style="margin-top:6px">Earn <b>${cur.threshold}</b> points in the month to qualify.</p></div>` : ''}
+    <div class="card"><h2>Every month</h2><table><tr><th>Month</th><th>Item</th><th style="text-align:right">Points needed</th></tr>
+      ${sw.map(s => `<tr><td>${fmtMonth(s.month)}</td><td>${esc(s.item_name)}</td><td style="text-align:right">${s.threshold}</td></tr>`).join('')}</table></div>
+    <div class="card"><h2>Prizes</h2>${pz.length ? pz.map(p => `<div class="act"><div><b>${esc(p.title)}</b><div class="muted small">${esc(p.description || '')}</div></div></div>`).join('') : '<p class="muted">Prizes coming soon. Stay tuned!</p>'}</div>`;
+}
+
+// ---------------- admin ----------------
+function adminLogin() {
+  const code = prompt('Admin code:'); if (!code) return;
+  rpc('cup_admin_check', { p_code: code }).then(async () => { S.adminCode = code; await loadAdmin(); }).catch(() => alert('Wrong code.'));
+}
+async function loadAdmin() {
+  S.admin = await rpc('cup_admin_data', { p_code: S.adminCode });
+  $('#adminbar').classList.remove('hidden'); renderAdmin();
+}
+$('#adminexit').onclick = () => { S.admin = null; S.adminCode = null; $('#adminbar').classList.add('hidden'); if (S.email) render(); else showGate(); };
+const adm = (fn, args) => rpc(fn, { p_code: S.adminCode, ...args });
+
+function renderAdmin() {
+  const tabs = [['review', 'Submissions'], ['insights', 'Insights'], ['program', 'Activities & phases'], ['swagp', 'Swag, prizes, awards'], ['access', 'Access & settings']];
+  $('#app').innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.adminTab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div><div id="pane"></div>`;
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.adminTab = b.dataset.t; renderAdmin(); });
+  ({ review: aReview, insights: aInsights, program: aProgram, swagp: aSwag, access: aAccess })[S.adminTab]();
+}
+function aReview() {
+  const A = S.admin, f = S.af || (S.af = { q: '', st: 'all' });
+  const list = A.submissions.filter(s => (f.st === 'all' || s.status === f.st) && (!f.q || (s.rep_name + s.agency + s.activity_title + s.rep_email).toLowerCase().includes(f.q.toLowerCase())));
+  $('#pane').innerHTML = `<div class="card"><div class="row"><input id="fq" placeholder="Search rep, agency, activity" value="${esc(f.q)}">
+    <select id="fs"><option value="all">All</option><option value="counted" ${f.st === 'counted' ? 'selected' : ''}>Counted</option><option value="removed" ${f.st === 'removed' ? 'selected' : ''}>Removed</option></select>
+    <button class="btn" id="csv">Download CSV</button></div>
+    <p class="muted small" style="margin-top:8px">${list.length} of ${A.submissions.length} submissions. Everything counts instantly; remove anything that isn't up to par (you can restore it).</p></div>
+    ${list.slice(0, 200).map(s => `<div class="card ${s.status === 'removed' ? 'gone' : ''}" style="${s.status === 'removed' ? 'opacity:.7' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:10px"><div><b>${esc(s.rep_name)}</b> <span class="muted">${esc(s.agency)} &middot; ${esc(s.rep_email)}</span><br>
+      ${esc(s.activity_title)} <span class="pts">${s.points} pts</span> ${s.status === 'removed' ? '<span class="tag">removed</span>' : ''}</div><div class="muted small">${fmtDate(s.created_at)}</div></div>
+      <div class="small" style="margin:6px 0">${Object.entries(s.data || {}).map(([k, v]) => `<b>${esc(k)}:</b> ${esc(v)}`).join(' &nbsp;|&nbsp; ')}</div>
+      ${s.removed_reason ? `<div class="small muted">Reason: ${esc(s.removed_reason)}</div>` : ''}
+      <div style="margin-top:6px">${s.file_path ? `<button class="btn sm" data-v="${esc(s.file_path)}">View proof</button> ` : ''}
+      ${s.status === 'counted' ? `<button class="btn sm danger" data-rm="${s.id}">Remove</button>` : `<button class="btn sm" data-rs="${s.id}">Restore</button>`}</div></div>`).join('')}
+    ${list.length > 200 ? '<p class="muted">Showing the newest 200. Use search or CSV for the rest.</p>' : ''}`;
+  $('#fq').oninput = e => { f.q = e.target.value; clearTimeout(S.ft); S.ft = setTimeout(aReview, 300); };
+  $('#fs').onchange = e => { f.st = e.target.value; aReview(); };
+  $('#csv').onclick = exportCsv;
+  document.querySelectorAll('[data-v]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const { data, error } = await db.functions.invoke('admin-file', { body: { code: S.adminCode, path: b.dataset.v } });
+    b.disabled = false;
+    if (error || !data?.url) return alert('Could not open the file. ' + (data?.error || error?.message || ''));
+    window.open(data.url, '_blank');
+  });
+  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+    const why = prompt('Reason for removing (the rep sees "removed"; the reason is for your records):', ''); if (why === null) return;
+    await adm('cup_admin_set_status', { p_id: b.dataset.rm, p_status: 'removed', p_reason: why }); await loadAdmin();
+  });
+  document.querySelectorAll('[data-rs]').forEach(b => b.onclick = async () => { await adm('cup_admin_set_status', { p_id: b.dataset.rs, p_status: 'counted', p_reason: null }); await loadAdmin(); });
+}
+function exportCsv() {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Has proof']].concat(S.admin.submissions.map(s =>
+    [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? 'yes' : '']));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
+  a.download = 'grohe-cup-submissions.csv'; a.click();
+}
+function aInsights() {
+  const A = S.admin, ok = A.submissions.filter(s => s.status === 'counted');
+  const by = (arr, f) => arr.reduce((m, x) => (m[f(x)] = (m[f(x)] || 0) + 1, m), {});
+  const active = new Set(ok.map(s => s.rep_email));
+  const quiet = A.reps.filter(r => !active.has(r.email));
+  const ag = {}; A.reps.forEach(r => { (ag[r.agency] = ag[r.agency] || { reps: 0, active: 0, subs: 0 }).reps++; if (active.has(r.email)) ag[r.agency].active++; });
+  ok.forEach(s => { if (ag[s.agency]) ag[s.agency].subs++; });
+  const act = by(ok, s => s.activity_title), foc = by(A.reps, r => r.focus);
+  const sorted = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+  const tbl = (head, rows) => `<table><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table>`;
+  $('#pane').innerHTML = `<div class="grid"><div class="stat"><b>${A.reps.length}</b>registered reps</div><div class="stat"><b>${active.size}</b>reps with a submission</div>
+    <div class="stat"><b>${A.reps.length ? Math.round(active.size / A.reps.length * 100) : 0}%</b>engagement</div><div class="stat"><b>${ok.length}</b>counted submissions</div></div>
+    <div class="card"><h2>By agency</h2>${tbl(['Agency', 'Registered', 'Active', 'Submissions'], Object.entries(ag).sort((a, b) => b[1].subs - a[1].subs).map(([k, v]) => [esc(k), v.reps, v.active, v.subs]))}</div>
+    <div class="card"><h2>Most popular activities</h2>${tbl(['Activity', 'Submissions'], sorted(act).map(([k, v]) => [esc(k), v])) || ''}</div>
+    <div class="card"><h2>Registered by sales focus</h2>${tbl(['Focus', 'Reps'], sorted(foc).map(([k, v]) => [esc(k), v]))}</div>
+    <div class="card"><h2>Registered but no submissions yet (${quiet.length})</h2>${quiet.length ? tbl(['Name', 'Agency', 'Email', 'Registered'], quiet.map(r => [esc(r.name), esc(r.agency), esc(r.email), fmtDate(r.created_at)])) : '<p class="muted">Everyone has submitted something.</p>'}</div>`;
+}
+
+// generic little editor for simple tables
+function simpleEditor(title, table, cols, rows, hint) {
+  const inp = (c, v) => c.t === 'bool' ? `<select data-c="${c.k}"><option value="true" ${v !== false ? 'selected' : ''}>Yes</option><option value="false" ${v === false ? 'selected' : ''}>No</option></select>`
+    : c.t === 'longtext' ? `<textarea data-c="${c.k}" style="min-height:44px">${esc(v ?? '')}</textarea>`
+    : `<input data-c="${c.k}" type="${c.t || 'text'}" value="${esc(v ?? '')}">`;
+  const block = (r, isNew) => `<div class="editrow" data-id="${r.id || ''}" data-table="${table}"><div class="row">${cols.map(c => `<div><label>${c.l}</label>${inp(c, r[c.k])}</div>`).join('')}</div>
+    <p style="margin-top:8px"><button class="btn primary sm" data-save>${isNew ? 'Add' : 'Save'}</button> ${isNew ? '' : '<button class="btn danger sm" data-del>Delete</button>'}</p></div>`;
+  return `<div class="card"><h2>${title}</h2>${hint ? `<p class="muted small">${hint}</p>` : ''}${rows.map(r => block(r)).join('')}<details><summary>+ Add new</summary>${block({}, true)}</details></div>`;
+}
+function wireEditors(numCols) {
+  document.querySelectorAll('.editrow[data-table]').forEach(box => {
+    const save = box.querySelector('[data-save]'), del = box.querySelector('[data-del]');
+    save.onclick = async () => {
+      const row = { id: box.dataset.id || undefined };
+      box.querySelectorAll('[data-c]').forEach(i => {
+        let v = i.value; const k = i.dataset.c;
+        if (i.type === 'number') v = v === '' ? 0 : parseInt(v, 10);
+        else if (i.tagName === 'SELECT' && (v === 'true' || v === 'false')) v = v === 'true';
+        else if (i.type === 'date') v = v || null;
+        if (k === 'domain' || k === 'email') v = v.trim().toLowerCase().replace(/^@/, '');
+        row[k] = v;
+      });
+      try { await adm('cup_admin_save', { p_table: box.dataset.table, p_row: row }); await loadAdmin(); } catch (x) { alert('Not saved: ' + x.message); }
+    };
+    if (del) del.onclick = async () => { if (!confirm('Delete this?')) return; try { await adm('cup_admin_delete', { p_table: box.dataset.table, p_id: box.dataset.id }); await loadAdmin(); } catch (x) { alert('Could not delete: ' + x.message + '\n(Tip: for activities that already have submissions, switch Active to No instead.)'); } };
+  });
+}
+function aProgram() {
+  const A = S.admin;
+  const phaseSel = v => `<select data-c="phase_id">${A.phases.map(p => `<option value="${p.id}" ${p.id === v ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`;
+  const actBlock = (a, isNew) => `<div class="editrow" data-act="${a.id || ''}"><div class="row"><div><label>Title</label><input data-c="title" value="${esc(a.title || '')}"></div>
+      <div style="max-width:90px"><label>Points</label><input data-c="points" type="number" value="${a.points ?? 1}"></div><div><label>Phase</label>${phaseSel(a.phase_id)}</div></div>
+    <label>Description</label><textarea data-c="description" style="min-height:44px">${esc(a.description || '')}</textarea>
+    <div class="row"><div><label>Photo / file</label><select data-c="file_mode">${['none', 'optional', 'required'].map(o => `<option ${a.file_mode === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div>
+      <div><label>File label</label><input data-c="file_label" value="${esc(a.file_label || '')}"></div>
+      <div><label>Active</label><select data-c="active"><option value="true" ${a.active !== false ? 'selected' : ''}>Yes</option><option value="false" ${a.active === false ? 'selected' : ''}>No (hidden)</option></select></div>
+      <div style="max-width:80px"><label>Order</label><input data-c="sort" type="number" value="${a.sort ?? 0}"></div></div>
+    <label>Earns swag for month (optional, pick any date in the month)</label><input data-c="qualifies_month" type="date" value="${esc(a.qualifies_month || '')}">
+    <label>Extra boxes the rep fills in</label><div data-fields>${(a.fields || []).map(fieldRow).join('')}</div>
+    <button class="btn sm" data-addf>+ Add box</button>
+    <p style="margin-top:10px"><button class="btn primary sm" data-asave>${isNew ? 'Add activity' : 'Save'}</button> ${isNew ? '' : '<button class="btn danger sm" data-adel>Delete</button>'}</p></div>`;
+  $('#pane').innerHTML = simpleEditor('Phases (time windows)', 'cup_phases', [{ k: 'name', l: 'Name' }, { k: 'starts_on', l: 'Opens', t: 'date' }, { k: 'ends_on', l: 'Closes (blank = stays open)', t: 'date' }, { k: 'sort', l: 'Order', t: 'number' }], A.phases,
+      'Add a new phase when new activities launch. Older phases and their activities stay on.') +
+    `<div class="card"><h2>Activities</h2>${A.activities.map(a => actBlock(a)).join('')}<details><summary>+ Add new activity</summary>${actBlock({}, true)}</details></div>`;
+  wireEditors();
+  document.querySelectorAll('[data-addf]').forEach(b => b.onclick = () => b.previousElementSibling.insertAdjacentHTML('beforeend', fieldRow({})));
+  document.querySelectorAll('#pane').forEach(() => 0);
+  $('#pane').onclick = e => { if (e.target.dataset.rmf !== undefined) e.target.closest('.fieldrow').remove(); };
+  document.querySelectorAll('.editrow[data-act]').forEach(box => {
+    box.querySelector('[data-asave]').onclick = async () => {
+      const row = { id: box.dataset.act || undefined };
+      box.querySelectorAll(':scope > .row [data-c], :scope > [data-c]').forEach(i => {
+        let v = i.value; const k = i.dataset.c;
+        if (i.type === 'number') v = v === '' ? 0 : parseInt(v, 10); else if (k === 'active') v = v === 'true'; else if (i.type === 'date' || k === 'file_label') v = v || null;
+        row[k] = v;
+      });
+      row.fields = [...box.querySelectorAll('.fieldrow')].map(fr => {
+        const label = fr.querySelector('[data-fl]').value.trim(); if (!label) return null;
+        return { key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'field', label, type: fr.querySelector('[data-ft]').value, required: fr.querySelector('[data-fr]').value === 'true' };
+      }).filter(Boolean);
+      if (row.qualifies_month) row.qualifies_month = row.qualifies_month.slice(0, 7) + '-01';
+      if (!row.title) return alert('Give it a title.');
+      try { await adm('cup_admin_save', { p_table: 'cup_activities', p_row: row }); await loadAdmin(); } catch (x) { alert('Not saved: ' + x.message); }
+    };
+    const d = box.querySelector('[data-adel]');
+    if (d) d.onclick = async () => { if (!confirm('Delete this activity?')) return; try { await adm('cup_admin_delete', { p_table: 'cup_activities', p_id: box.dataset.act }); await loadAdmin(); } catch (x) { alert('Could not delete (it probably has submissions). Set Active to No instead.'); } };
+  });
+}
+const fieldRow = f => `<div class="fieldrow"><input data-fl placeholder="Label, e.g. Date of training" value="${esc(f.label || '')}">
+  <select data-ft style="max-width:110px">${['text', 'longtext', 'date', 'number'].map(t => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+  <select data-fr style="max-width:110px"><option value="true" ${f.required !== false ? 'selected' : ''}>Required</option><option value="false" ${f.required === false ? 'selected' : ''}>Optional</option></select>
+  <button class="btn sm danger" data-rmf>x</button></div>`;
+function aSwag() {
+  const A = S.admin;
+  $('#pane').innerHTML =
+    simpleEditor('Swag of the month', 'cup_swag', [{ k: 'month', l: 'Month (1st)', t: 'date' }, { k: 'item_name', l: 'Item' }, { k: 'description', l: 'Description' }, { k: 'threshold', l: 'Points to qualify', t: 'number' }], A.swag,
+      'A rep qualifies by earning the threshold in that month, or by completing an activity flagged to earn that month\'s swag.') +
+    simpleEditor('Prizes', 'cup_prizes', [{ k: 'title', l: 'Prize' }, { k: 'description', l: 'Description' }, { k: 'sort', l: 'Order', t: 'number' }], A.prizes) +
+    simpleEditor('Agency awards / bonus points', 'cup_awards', [{ k: 'agency', l: 'Agency (exact name)' }, { k: 'title', l: 'What for' }, { k: 'points', l: 'Points', t: 'number' }, { k: 'awarded_on', l: 'Date', t: 'date' }, { k: 'note', l: 'Note' }], A.awards,
+      'Adds to that agency\'s total on the Agencies leaderboard. Use for the agency-wide contests.');
+  wireEditors();
+}
+function aAccess() {
+  const A = S.admin, c = A.config || {};
+  $('#pane').innerHTML =
+    `<div class="card"><h2>Program settings</h2>${[['program_start', 'Program starts', 'date'], ['program_end', 'Program ends', 'date'], ['contact_name', 'Contact name'], ['contact_email', 'Contact email'], ['notify_to', 'Notification emails (comma separated)'], ['app_url', 'This app\'s web address (used in emails)']].map(([k, l, t]) =>
+      `<label>${l}</label><div class="row"><input data-cfg="${k}" type="${t || 'text'}" value="${esc(c[k] || '')}"><div style="flex:0 0 80px"><button class="btn primary sm" data-cs="${k}">Save</button></div></div>`).join('')}
+      <label>Send the 9 pm digest even if nobody submitted?</label><div class="row"><select data-cfg="digest_when_empty"><option value="false" ${c.digest_when_empty !== 'true' ? 'selected' : ''}>No</option><option value="true" ${c.digest_when_empty === 'true' ? 'selected' : ''}>Yes</option></select><div style="flex:0 0 80px"><button class="btn primary sm" data-cs="digest_when_empty">Save</button></div></div></div>` +
+    simpleEditor('Approved email domains', 'cup_domains', [{ k: 'domain', l: 'Domain (no @)' }, { k: 'agency', l: 'Agency name on leaderboard' }, { k: 'show_on_leaderboard', l: 'Show on leaderboard', t: 'bool' }], A.domains,
+      'Rename an agency here and it updates for everyone at that domain the next time they open the app. Two domains with the same agency name combine into one agency.') +
+    simpleEditor('Individually approved emails', 'cup_allowed_emails', [{ k: 'email', l: 'Email' }, { k: 'agency', l: 'Agency name' }, { k: 'show_on_leaderboard', l: 'Show on leaderboard', t: 'bool' }], A.emails) +
+    `<div class="card"><h2>Registered reps (${A.reps.length})</h2><table><tr><th>Name</th><th>Agency</th><th>Focus</th><th>Market</th></tr>${A.reps.map(r => `<tr><td>${esc(r.name)}<br><span class="muted small">${esc(r.email)}</span></td><td>${esc(r.agency)}</td><td>${esc(r.focus)}${r.focus_note ? '<br><span class="muted small">' + esc(r.focus_note) + '</span>' : ''}</td><td>${esc(r.market)}</td></tr>`).join('')}</table></div>`;
+  wireEditors();
+  document.querySelectorAll('[data-cs]').forEach(b => b.onclick = async () => {
+    const i = document.querySelector(`[data-cfg="${b.dataset.cs}"]`);
+    try { await adm('cup_admin_set_config', { p_key: b.dataset.cs, p_value: i.value }); b.textContent = 'Saved'; setTimeout(() => b.textContent = 'Save', 1200); } catch (x) { alert(x.message); }
+  });
+}
+
+// ---------------- boot ----------------
+$('#signout').onclick = () => { sessionStorage.removeItem('cup_email'); S.email = S.rep = null; showGate(); };
+(async function boot() {
+  footer();
+  if (SUPABASE_URL.startsWith('PASTE')) { $('#app').innerHTML = msg('err', 'Setup not finished: open index.html and paste your Supabase URL and key at the top of the script.'); return; }
+  const saved = sessionStorage.getItem('cup_email');
+  if (!saved) return showGate();
+  try {
+    const r = await rpc('cup_check_email', { p_email: saved });
+    if (!r.allowed) return showGate();
+    S.email = saved;
+    if (r.registered) { S.rep = r.rep; await enter(); } else showRegister(r.agency);
+  } catch (x) { showGate(x.message); }
+})();
+</script>
+</body>
+</html>
