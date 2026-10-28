@@ -9,8 +9,8 @@
   :root{--lixil:#e95d08;--lixil-dark:#c44e06;--lixil-light:#fdf0e8;--lixil-mid:#fad5bb;--border:#e5e7eb;--surface:#f9fafb;--white:#fff;--text:#111827;--muted:#6b7280;--green:#15803d;--red:#b91c1c}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:var(--text);background:var(--surface);min-height:100vh}
-  header{background:var(--lixil);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px}
-  header img{height:38px;background:#fff;border-radius:6px;padding:3px 6px}
+  header{background:#0e2b4b;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px}
+  header img{height:40px;border-radius:4px}
   header h1{font-size:18px;font-weight:700;flex:1}
   header .who{font-size:12px;opacity:.95}
   header button{background:transparent;border:1px solid rgba(255,255,255,.7);color:#fff;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
@@ -165,8 +165,8 @@ function pre() {
   return '';
 }
 function paneSubmit() {
-  const phases = S.cat.phases;
-  $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)} <span class="muted small">${p.ends_on ? 'through ' + fmtDate(p.ends_on) : 'open'}</span></h2>
+  const phases = S.cat.phases.filter(p => p.activities.length);
+  $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)}</h2>
     ${p.open ? '' : msg('info', 'This phase has closed.')}
     ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div></div>
       <div style="text-align:right"><span class="pts">${a.points} pt${a.points === 1 ? '' : 's'}</span><br><br>
@@ -230,7 +230,7 @@ async function paneBoard() {
 function paneMine() {
   const m = S.my;
   $('#pane').innerHTML = `<div class="grid"><div class="stat"><b>${m.total_points}</b>total points</div><div class="stat"><b>${m.submissions.filter(s => s.status === 'counted').length}</b>activities counted</div></div>
-    <div class="card"><h2>Swag of the month progress</h2>${m.swag.map(s => `<div style="margin:10px 0"><b>${fmtMonth(s.month)}</b> &middot; ${esc(s.item_name)}
+    ${prizeProgress(m.total_points)}<div class="card"><h2>Swag of the month progress</h2>${m.swag.map(s => `<div style="margin:10px 0"><b>${fmtMonth(s.month)}</b> &middot; ${esc(s.item_name)}
       ${s.qualified ? '<span class="tag" style="background:#dcfce7;color:#166534">Qualified!</span>' : ''}
       <div class="bar"><i style="width:${Math.min(100, s.qualified ? 100 : s.points / Math.max(1, s.threshold) * 100)}%"></i></div>
       <span class="muted small">${s.points} of ${s.threshold} points this month</span></div>`).join('') || '<p class="muted">Coming soon.</p>'}</div>
@@ -238,6 +238,13 @@ function paneMine() {
     ${m.submissions.some(s => s.status === 'removed') ? `<p class="muted small" style="margin-top:8px">Removed items didn't meet the requirements. Questions? Contact ${esc(CONTACT.name)}.</p>` : ''}</div>
     <p><button class="btn" id="edit">Edit my profile</button></p>`;
   $('#edit').onclick = () => showRegister(S.rep.agency, S.rep);
+}
+function prizeProgress(total) {
+  const tiers = S.cat.prizes.filter(p => p.points_needed);
+  if (!tiers.length) return '';
+  return `<div class="card"><h2>Prize progress</h2>${tiers.map(p => `<div style="margin:10px 0"><b>${esc(p.title)}</b> <span class="muted small">(${p.points_needed} pts)</span>
+    ${total >= p.points_needed ? '<span class="tag" style="background:#dcfce7;color:#166534">Earned!</span>' : ''}
+    <div class="bar"><i style="width:${Math.min(100, total / p.points_needed * 100)}%"></i></div><span class="muted small">${Math.min(total, p.points_needed)} of ${p.points_needed} points</span></div>`).join('')}</div>`;
 }
 function paneSwag() {
   const sw = S.cat.swag, pz = S.cat.prizes;
@@ -247,7 +254,7 @@ function paneSwag() {
       <p class="small" style="margin-top:6px">Earn <b>${cur.threshold}</b> points in the month to qualify.</p></div>` : ''}
     <div class="card"><h2>Every month</h2><table><tr><th>Month</th><th>Item</th><th style="text-align:right">Points needed</th></tr>
       ${sw.map(s => `<tr><td>${fmtMonth(s.month)}</td><td>${esc(s.item_name)}</td><td style="text-align:right">${s.threshold}</td></tr>`).join('')}</table></div>
-    <div class="card"><h2>Prizes</h2>${pz.length ? pz.map(p => `<div class="act"><div><b>${esc(p.title)}</b><div class="muted small">${esc(p.description || '')}</div></div></div>`).join('') : '<p class="muted">Prizes coming soon. Stay tuned!</p>'}</div>`;
+    <div class="card"><h2>Prizes</h2>${pz.length ? pz.map(p => `<div class="act"><div><b>${esc(p.title)}</b><div class="muted small">${esc(p.description || '')}</div></div>${p.points_needed ? `<span class="pts">${p.points_needed} pts</span>` : '<span class="pts">Grand prize</span>'}</div>`).join('') : '<p class="muted">Prizes coming soon. Stay tuned!</p>'}</div>`;
 }
 
 // ---------------- admin ----------------
@@ -402,7 +409,7 @@ function aSwag() {
   $('#pane').innerHTML =
     simpleEditor('Swag of the month', 'cup_swag', [{ k: 'month', l: 'Month (1st)', t: 'date' }, { k: 'item_name', l: 'Item' }, { k: 'description', l: 'Description' }, { k: 'threshold', l: 'Points to qualify', t: 'number' }], A.swag,
       'A rep qualifies by earning the threshold in that month, or by completing an activity flagged to earn that month\'s swag.') +
-    simpleEditor('Prizes', 'cup_prizes', [{ k: 'title', l: 'Prize' }, { k: 'description', l: 'Description' }, { k: 'sort', l: 'Order', t: 'number' }], A.prizes) +
+    simpleEditor('Prizes', 'cup_prizes', [{ k: 'title', l: 'Prize' }, { k: 'description', l: 'Description' }, { k: 'points_needed', l: 'Points needed (blank = grand prize)', t: 'number' }, { k: 'sort', l: 'Order', t: 'number' }], A.prizes) +
     simpleEditor('Agency awards / bonus points', 'cup_awards', [{ k: 'agency', l: 'Agency (exact name)' }, { k: 'title', l: 'What for' }, { k: 'points', l: 'Points', t: 'number' }, { k: 'awarded_on', l: 'Date', t: 'date' }, { k: 'note', l: 'Note' }], A.awards,
       'Adds to that agency\'s total on the Agencies leaderboard. Use for the agency-wide contests.');
   wireEditors();
