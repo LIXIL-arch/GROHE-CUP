@@ -306,13 +306,24 @@ function aReview() {
   });
   document.querySelectorAll('[data-rs]').forEach(b => b.onclick = async () => { await adm('cup_admin_set_status', { p_id: b.dataset.rs, p_status: 'counted', p_reason: null }); await loadAdmin(); });
 }
-function exportCsv() {
+async function exportCsv() {
+  const btn = $('#csv'); btn.disabled = true; btn.textContent = 'Building CSV...';
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Has proof']].concat(S.admin.submissions.map(s =>
-    [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? 'yes' : '']));
+  let urls = {};
+  try {
+    const paths = S.admin.submissions.map(s => s.file_path).filter(Boolean);
+    if (paths.length) {
+      const { data, error } = await db.functions.invoke('admin-file', { body: { code: S.adminCode, paths } });
+      if (error || !data?.urls) throw new Error(data?.error || error?.message || 'no links');
+      urls = data.urls;
+    }
+  } catch (x) { alert('CSV will be built without proof links. ' + x.message); }
+  const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Proof link (expires in 7 days)']].concat(S.admin.submissions.map(s =>
+    [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? (urls[s.file_path] || 'has proof (link unavailable)') : '']));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
   a.download = 'grohe-cup-submissions.csv'; a.click();
+  btn.disabled = false; btn.textContent = 'Download CSV';
 }
 function aInsights() {
   const A = S.admin, ok = A.submissions.filter(s => s.status === 'counted');
