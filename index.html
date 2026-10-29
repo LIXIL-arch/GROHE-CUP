@@ -1,4 +1,4 @@
-<!-- built 2026-10-29 14:06 UTC -->
+<!-- built 2026-10-29 17:21 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,7 +82,7 @@ const SUPABASE_KEY = 'sb_publishable_BaUZq_Vuy2bKOIqT4ahufg_vX98t6uA';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const S = { email: null, rep: null, cat: null, my: null, tab: 'submit', lbMode: 'reps', lbMonth: '', admin: null, adminCode: null, adminTab: 'review' };
+const S = { inForm: false, email: null, rep: null, cat: null, my: null, tab: 'submit', lbMode: 'reps', lbMonth: '', admin: null, adminCode: null, adminTab: 'review' };
 let CONTACT = { name: 'Margaret Cook', email: 'margaret.cook@lixil.com' };
 
 async function rpc(name, args) {
@@ -153,10 +153,11 @@ async function refresh() {
 
 // ---------------- main app ----------------
 function render() {
+  S.inForm = false;
   if (S.admin) return renderAdmin();
   const tabs = [['submit', 'Submit activity'], ['board', 'Leaderboard'], ['mine', 'My activity'], ['swag', 'Swag & prizes']];
   $('#app').innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div><div id="pane"></div>`;
-  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.tab = b.dataset.t; render(); });
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.tab = b.dataset.t; render(); autoRefresh(true); });
   ({ submit: paneSubmit, board: paneBoard, mine: paneMine, swag: paneSwag })[S.tab]();
 }
 function pre() {
@@ -177,6 +178,7 @@ function paneSubmit() {
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => openForm(b.dataset.a));
 }
 function openForm(id) {
+  S.inForm = true;
   const a = S.cat.phases.flatMap(p => p.activities).find(x => x.id === id);
   $('#pane').innerHTML = `<div class="card"><button class="btn sm" id="back">&larr; Back</button>
     <h2 style="margin-top:10px">${esc(a.title)} <span class="pts">${ptsLabel(a)}</span></h2>
@@ -447,6 +449,21 @@ function aAccess() {
     try { await adm('cup_admin_set_config', { p_key: b.dataset.cs, p_value: i.value }); b.textContent = 'Saved'; setTimeout(() => b.textContent = 'Save', 1200); } catch (x) { alert(x.message); }
   });
 }
+
+// ---------------- keep the page fresh ----------------
+let lastRefresh = Date.now();
+async function autoRefresh(force) {
+  if (S.admin || !S.rep || S.inForm) return;
+  if (!force && Date.now() - lastRefresh < 20000) return;
+  try {
+    const before = JSON.stringify([S.cat, S.my]);
+    await refresh(); lastRefresh = Date.now();
+    if (!S.inForm && !S.admin && JSON.stringify([S.cat, S.my]) !== before) render();   // only redraw if something changed
+  } catch (e) { /* offline or signed out: try again next time */ }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) autoRefresh(); });
+window.addEventListener('focus', () => autoRefresh());
+setInterval(() => { if (!document.hidden) autoRefresh(true); }, 120000);
 
 // ---------------- boot ----------------
 $('#signout').onclick = () => { sessionStorage.removeItem('cup_email'); S.email = S.rep = null; showGate(); };
