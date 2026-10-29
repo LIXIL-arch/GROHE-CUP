@@ -264,9 +264,13 @@ function adminLogin() {
 }
 async function loadAdmin() {
   S.admin = await rpc('cup_admin_data', { p_code: S.adminCode });
+  if (S.email && S.rep) { try { await refresh(); } catch (e) { /* rep view refreshes on exit */ } }
   $('#adminbar').classList.remove('hidden'); renderAdmin();
 }
-$('#adminexit').onclick = () => { S.admin = null; S.adminCode = null; $('#adminbar').classList.add('hidden'); if (S.email) render(); else showGate(); };
+$('#adminexit').onclick = async () => {
+  S.admin = null; S.adminCode = null; $('#adminbar').classList.add('hidden');
+  if (S.email && S.rep) { try { await refresh(); } catch (e) {} render(); } else showGate();
+};
 const adm = (fn, args) => rpc(fn, { p_code: S.adminCode, ...args });
 
 function renderAdmin() {
