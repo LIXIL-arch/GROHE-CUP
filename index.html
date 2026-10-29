@@ -1,3 +1,4 @@
+<!-- built 2026-10-29 14:06 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -164,12 +165,13 @@ function pre() {
   if (S.cat.today > end) return msg('info', `The program ended ${fmtDate(end)}. Thanks for playing!`);
   return '';
 }
+const ptsLabel = a => (a.points === 0 && a.qualifies_month) ? 'Swag raffle entry' : a.points + ' pt' + (a.points === 1 ? '' : 's');
 function paneSubmit() {
   const phases = S.cat.phases.filter(p => p.activities.length);
   $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)}</h2>
     ${p.open ? '' : msg('info', 'This phase has closed.')}
     ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div></div>
-      <div style="text-align:right"><span class="pts">${a.points} pt${a.points === 1 ? '' : 's'}</span><br><br>
+      <div style="text-align:right"><span class="pts">${ptsLabel(a)}</span><br><br>
       ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? `<button class="btn primary sm" data-a="${a.id}">Submit</button>` : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div>`).join('')
     : '<div class="card muted">Activities will show up here when the program starts.</div>');
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => openForm(b.dataset.a));
@@ -177,7 +179,7 @@ function paneSubmit() {
 function openForm(id) {
   const a = S.cat.phases.flatMap(p => p.activities).find(x => x.id === id);
   $('#pane').innerHTML = `<div class="card"><button class="btn sm" id="back">&larr; Back</button>
-    <h2 style="margin-top:10px">${esc(a.title)} <span class="pts">${a.points} pt${a.points === 1 ? '' : 's'}</span></h2>
+    <h2 style="margin-top:10px">${esc(a.title)} <span class="pts">${ptsLabel(a)}</span></h2>
     <p class="muted">${esc(a.description || '')}</p>
     ${a.fields.map(f => `<label>${esc(f.label)}${f.required ? ' *' : ''}</label>` + (f.type === 'longtext' ? `<textarea data-k="${esc(f.key)}"></textarea>` : `<input data-k="${esc(f.key)}" type="${f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}">`)).join('')}
     ${a.file_mode !== 'none' ? `<label>${esc(a.file_label || 'Photo / file')}${a.file_mode === 'required' ? ' *' : ' (optional)'}</label><input type="file" id="file" accept="image/*,application/pdf"><div class="muted small">Max 10 MB. Only LIXIL admins can see your upload.</div>` : ''}
@@ -232,8 +234,8 @@ function paneMine() {
   $('#pane').innerHTML = `<div class="grid"><div class="stat"><b>${m.total_points}</b>total points</div><div class="stat"><b>${m.submissions.filter(s => s.status === 'counted').length}</b>activities counted</div></div>
     ${prizeProgress(m.total_points)}<div class="card"><h2>Swag of the month progress</h2>${m.swag.map(s => `<div style="margin:10px 0"><b>${fmtMonth(s.month)}</b> &middot; ${esc(s.item_name)}
       ${s.qualified ? '<span class="tag" style="background:#dcfce7;color:#166534">Qualified!</span>' : ''}
-      <div class="bar"><i style="width:${Math.min(100, s.qualified ? 100 : s.points / Math.max(1, s.threshold) * 100)}%"></i></div>
-      <span class="muted small">${s.points} of ${s.threshold} points this month</span></div>`).join('') || '<p class="muted">Coming soon.</p>'}</div>
+      ${s.threshold > 0 ? `<div class="bar"><i style="width:${Math.min(100, s.qualified ? 100 : s.points / Math.max(1, s.threshold) * 100)}%"></i></div>
+      <span class="muted small">${s.points} of ${s.threshold} points this month</span>` : `<div class="muted small" style="margin-top:4px">${s.qualified ? "You're entered. Nice work!" : 'Complete the swag activity to be entered.'}</div>`}</div>`).join('') || '<p class="muted">Coming soon.</p>'}</div>
     <div class="card"><h2>My submissions</h2>${m.submissions.length ? `<table><tr><th>Date</th><th>Activity</th><th style="text-align:right">Pts</th></tr>${m.submissions.map(s => `<tr class="${s.status === 'removed' ? 'gone' : ''}"><td>${fmtDate(s.created_at)}</td><td>${esc(s.title)}${s.status === 'removed' ? ' <span class="tag">removed</span>' : ''}</td><td style="text-align:right">${s.points}</td></tr>`).join('')}</table>` : '<p class="muted">Nothing yet. Head to Submit activity!</p>'}
     ${m.submissions.some(s => s.status === 'removed') ? `<p class="muted small" style="margin-top:8px">Removed items didn't meet the requirements. Questions? Contact ${esc(CONTACT.name)}.</p>` : ''}</div>
     <p><button class="btn" id="edit">Edit my profile</button></p>`;
@@ -251,9 +253,9 @@ function paneSwag() {
   const cur = sw.find(s => s.month === S.cat.today.slice(0, 8) + '01') || sw.find(s => s.month >= S.cat.today) || sw[0];
   $('#pane').innerHTML = `${cur ? `<div class="card" style="border-color:var(--lixil)"><h2>Swag of the month: ${fmtMonth(cur.month)}</h2>
       <p style="font-size:16px;margin:6px 0"><b>${esc(cur.item_name)}</b></p><p class="muted">${esc(cur.description || '')}</p>
-      <p class="small" style="margin-top:6px">Earn <b>${cur.threshold}</b> points in the month to qualify.</p></div>` : ''}
-    <div class="card"><h2>Every month</h2><table><tr><th>Month</th><th>Item</th><th style="text-align:right">Points needed</th></tr>
-      ${sw.map(s => `<tr><td>${fmtMonth(s.month)}</td><td>${esc(s.item_name)}</td><td style="text-align:right">${s.threshold}</td></tr>`).join('')}</table></div>
+      <p class="small" style="margin-top:6px">${cur.threshold > 0 ? `Earn <b>${cur.threshold}</b> points in the month to qualify.` : 'Complete the swag activity to be entered. No points needed.'}</p></div>` : ''}
+    <div class="card"><h2>Every month</h2><table><tr><th>Month</th><th>Item</th><th style="text-align:right">To qualify</th></tr>
+      ${sw.map(s => `<tr><td>${fmtMonth(s.month)}</td><td>${esc(s.item_name)}</td><td style="text-align:right">${s.threshold > 0 ? s.threshold + ' points' : 'Complete the swag activity'}</td></tr>`).join('')}</table></div>
     <div class="card"><h2>Prizes</h2>${pz.length ? pz.map(p => `<div class="act"><div><b>${esc(p.title)}</b><div class="muted small">${esc(p.description || '')}</div></div>${p.points_needed ? `<span class="pts">${p.points_needed} pts</span>` : '<span class="pts">Grand prize</span>'}</div>`).join('') : '<p class="muted">Prizes coming soon. Stay tuned!</p>'}</div>`;
 }
 
@@ -422,8 +424,8 @@ const fieldRow = f => `<div class="fieldrow"><input data-fl placeholder="Label, 
 function aSwag() {
   const A = S.admin;
   $('#pane').innerHTML =
-    simpleEditor('Swag of the month', 'cup_swag', [{ k: 'month', l: 'Month (1st)', t: 'date' }, { k: 'item_name', l: 'Item' }, { k: 'description', l: 'Description' }, { k: 'threshold', l: 'Points to qualify', t: 'number' }], A.swag,
-      'A rep qualifies by earning the threshold in that month, or by completing an activity flagged to earn that month\'s swag.') +
+    simpleEditor('Swag of the month', 'cup_swag', [{ k: 'month', l: 'Month (1st)', t: 'date' }, { k: 'item_name', l: 'Item' }, { k: 'description', l: 'Description' }, { k: 'threshold', l: 'Points to qualify (0 = complete the swag activity)', t: 'number' }], A.swag,
+      'Points to qualify > 0: a rep qualifies by earning that many points in the month (or by completing an activity flagged to earn that month\'s swag). 0 = raffle style: only completing the swag activity qualifies.') +
     simpleEditor('Prizes', 'cup_prizes', [{ k: 'title', l: 'Prize' }, { k: 'description', l: 'Description' }, { k: 'points_needed', l: 'Points needed (blank = grand prize)', t: 'number' }, { k: 'sort', l: 'Order', t: 'number' }], A.prizes) +
     simpleEditor('Agency awards / bonus points', 'cup_awards', [{ k: 'agency', l: 'Agency (exact name)' }, { k: 'title', l: 'What for' }, { k: 'points', l: 'Points', t: 'number' }, { k: 'awarded_on', l: 'Date', t: 'date' }, { k: 'note', l: 'Note' }], A.awards,
       'Adds to that agency\'s total on the Agencies leaderboard. Use for the agency-wide contests.');
