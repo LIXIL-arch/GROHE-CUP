@@ -1,4 +1,4 @@
-<!-- built 2026-10-29 17:21 UTC -->
+<!-- built 2026-10-30 13:46 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,6 +58,10 @@
   footer{max-width:880px;margin:0 auto;padding:6px 16px 30px;font-size:12px;color:var(--muted)}
   footer a{color:var(--lixil-dark)}
   .hidden{display:none!important}
+  #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;max-width:90vw;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);background:#fef2f2;color:var(--red);border:1px solid #fecaca}
+  #toast.ok{background:#f0fdf4;color:var(--green);border-color:#bbf7d0}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:40}
+  .overlay .card{width:min(360px,90vw);margin:0}
   .editrow{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:#fff}
   .fieldrow{display:flex;gap:6px;margin-bottom:6px} .fieldrow input,.fieldrow select{flex:1}
   details>summary{cursor:pointer;font-weight:700;padding:8px 0}
@@ -82,6 +86,19 @@ const SUPABASE_KEY = 'sb_publishable_BaUZq_Vuy2bKOIqT4ahufg_vX98t6uA';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(text, kind) {
+  let t = document.getElementById('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.className = kind || ''; t.textContent = text; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 9000);
+}
+// two-click confirm that never uses browser popups: first click arms the button, second runs it
+function armed(btn, label, action) {
+  btn.onclick = async () => {
+    if (btn.dataset.armed) { btn.dataset.armed = ''; return action(); }
+    const old = btn.textContent; btn.dataset.armed = '1'; btn.textContent = label;
+    setTimeout(() => { if (btn.dataset.armed) { btn.dataset.armed = ''; btn.textContent = old; } }, 4000);
+  };
+}
 const S = { inForm: false, email: null, rep: null, cat: null, my: null, tab: 'submit', lbMode: 'reps', lbMonth: '', admin: null, adminCode: null, adminTab: 'review' };
 let CONTACT = { name: 'Margaret Cook', email: 'margaret.cook@lixil.com' };
 
@@ -171,9 +188,9 @@ function paneSubmit() {
   const phases = S.cat.phases.filter(p => p.activities.length);
   $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)}</h2>
     ${p.open ? '' : msg('info', 'This phase has closed.')}
-    ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div></div>
+    ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div>${a.one_time ? '<div class="muted small"><i>One-time only: counts once per rep.</i></div>' : ''}</div>
       <div style="text-align:right"><span class="pts">${ptsLabel(a)}</span><br><br>
-      ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? `<button class="btn primary sm" data-a="${a.id}">Submit</button>` : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div>`).join('')
+      ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? (a.one_time && (S.my.submissions || []).some(x => x.activity_id === a.id && x.status === 'counted') ? '<span class="muted small">Done &#10003;</span>' : `<button class="btn primary sm" data-a="${a.id}">Submit</button>`) : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div>`).join('')
     : '<div class="card muted">Activities will show up here when the program starts.</div>');
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => openForm(b.dataset.a));
 }
@@ -263,8 +280,14 @@ function paneSwag() {
 
 // ---------------- admin ----------------
 function adminLogin() {
-  const code = prompt('Admin code:'); if (!code) return;
-  rpc('cup_admin_check', { p_code: code }).then(async () => { S.adminCode = code; await loadAdmin(); }).catch(() => alert('Wrong code.'));
+  const o = document.createElement('div'); o.className = 'overlay';
+  o.innerHTML = `<div class="card"><h2>Admin</h2><label>Admin code</label><input id="acode" type="password" autocomplete="off"><div id="aerr"></div>
+    <p style="margin-top:12px"><button class="btn primary" id="ago">Enter</button> <button class="btn" id="acancel">Cancel</button></p></div>`;
+  document.body.appendChild(o); $('#acode').focus();
+  const go = () => { const code = $('#acode').value; if (!code) return; $('#ago').disabled = true;
+    rpc('cup_admin_check', { p_code: code }).then(async () => { S.adminCode = code; o.remove(); await loadAdmin(); })
+      .catch(() => { $('#aerr').innerHTML = msg('err', 'Wrong code.'); $('#ago').disabled = false; }); };
+  $('#ago').onclick = go; $('#acode').onkeydown = e => { if (e.key === 'Enter') go(); }; $('#acancel').onclick = () => o.remove();
 }
 async function loadAdmin() {
   S.admin = await rpc('cup_admin_data', { p_code: S.adminCode });
@@ -305,12 +328,15 @@ function aReview() {
     b.disabled = true;
     const { data, error } = await db.functions.invoke('admin-file', { body: { code: S.adminCode, path: b.dataset.v } });
     b.disabled = false;
-    if (error || !data?.url) return alert('Could not open the file. ' + (data?.error || error?.message || ''));
+    if (error || !data?.url) return toast('Could not open the file. ' + (data?.error || error?.message || ''));
     window.open(data.url, '_blank');
   });
-  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
-    const why = prompt('Reason for removing (the rep sees "removed"; the reason is for your records):', ''); if (why === null) return;
-    await adm('cup_admin_set_status', { p_id: b.dataset.rm, p_status: 'removed', p_reason: why }); await loadAdmin();
+  document.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
+    const box = document.createElement('span'); box.style.cssText = 'display:inline-flex;gap:6px;margin-left:6px;align-items:center';
+    box.innerHTML = `<input placeholder="Reason (for your records, optional)" style="width:240px;padding:4px 8px"><button class="btn sm danger">Confirm remove</button><button class="btn sm">Cancel</button>`;
+    b.replaceWith(box); const [inp, ok, no] = box.children; inp.focus();
+    ok.onclick = async () => { try { await adm('cup_admin_set_status', { p_id: b.dataset.rm, p_status: 'removed', p_reason: inp.value }); await loadAdmin(); } catch (x) { toast('Not removed: ' + x.message); } };
+    no.onclick = () => aReview();
   });
   document.querySelectorAll('[data-rs]').forEach(b => b.onclick = async () => { await adm('cup_admin_set_status', { p_id: b.dataset.rs, p_status: 'counted', p_reason: null }); await loadAdmin(); });
 }
@@ -325,7 +351,7 @@ async function exportCsv() {
       if (error || !data?.urls) throw new Error(data?.error || error?.message || 'no links');
       urls = data.urls;
     }
-  } catch (x) { alert('CSV will be built without proof links. ' + x.message); }
+  } catch (x) { toast('CSV will be built without proof links. ' + x.message); }
   const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Proof link (expires in 7 days)']].concat(S.admin.submissions.map(s =>
     [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? (urls[s.file_path] || 'has proof (link unavailable)') : '']));
   const a = document.createElement('a');
@@ -373,9 +399,9 @@ function wireEditors(numCols) {
         if (k === 'domain' || k === 'email') v = v.trim().toLowerCase().replace(/^@/, '');
         row[k] = v;
       });
-      try { await adm('cup_admin_save', { p_table: box.dataset.table, p_row: row }); await loadAdmin(); } catch (x) { alert('Not saved: ' + x.message); }
+      try { await adm('cup_admin_save', { p_table: box.dataset.table, p_row: row }); await loadAdmin(); } catch (x) { toast(/duplicate key/i.test(x.message) ? 'That one is already on the list. Each domain or email can only be added once, so find it in the list above and edit that row instead.' : 'Not saved: ' + x.message); }
     };
-    if (del) del.onclick = async () => { if (!confirm('Delete this?')) return; try { await adm('cup_admin_delete', { p_table: box.dataset.table, p_id: box.dataset.id }); await loadAdmin(); } catch (x) { alert('Could not delete: ' + x.message + '\n(Tip: for activities that already have submissions, switch Active to No instead.)'); } };
+    if (del) armed(del, 'Click again to delete', async () => { try { await adm('cup_admin_delete', { p_table: box.dataset.table, p_id: box.dataset.id }); await loadAdmin(); } catch (x) { toast('Could not delete: ' + x.message); } });
   });
 }
 function aProgram() {
@@ -388,6 +414,7 @@ function aProgram() {
       <div><label>File label</label><input data-c="file_label" value="${esc(a.file_label || '')}"></div>
       <div><label>Active</label><select data-c="active"><option value="true" ${a.active !== false ? 'selected' : ''}>Yes</option><option value="false" ${a.active === false ? 'selected' : ''}>No (hidden)</option></select></div>
       <div style="max-width:80px"><label>Order</label><input data-c="sort" type="number" value="${a.sort ?? 0}"></div></div>
+    <label>How many times can a rep submit this?</label><select data-c="one_time"><option value="false" ${!a.one_time ? 'selected' : ''}>As many times as they want</option><option value="true" ${a.one_time ? 'selected' : ''}>Only once per rep</option></select>
     <label>Earns swag for month (optional, pick any date in the month)</label><input data-c="qualifies_month" type="date" value="${esc(a.qualifies_month || '')}">
     <label>Extra boxes the rep fills in</label><div data-fields>${(a.fields || []).map(fieldRow).join('')}</div>
     <button class="btn sm" data-addf>+ Add box</button>
@@ -404,7 +431,7 @@ function aProgram() {
       const row = { id: box.dataset.act || undefined };
       box.querySelectorAll(':scope > .row [data-c], :scope > [data-c]').forEach(i => {
         let v = i.value; const k = i.dataset.c;
-        if (i.type === 'number') v = v === '' ? 0 : parseInt(v, 10); else if (k === 'active') v = v === 'true'; else if (i.type === 'date' || k === 'file_label') v = v || null;
+        if (i.type === 'number') v = v === '' ? 0 : parseInt(v, 10); else if (k === 'active' || k === 'one_time') v = v === 'true'; else if (i.type === 'date' || k === 'file_label') v = v || null;
         row[k] = v;
       });
       row.fields = [...box.querySelectorAll('.fieldrow')].map(fr => {
@@ -412,11 +439,11 @@ function aProgram() {
         return { key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'field', label, type: fr.querySelector('[data-ft]').value, required: fr.querySelector('[data-fr]').value === 'true' };
       }).filter(Boolean);
       if (row.qualifies_month) row.qualifies_month = row.qualifies_month.slice(0, 7) + '-01';
-      if (!row.title) return alert('Give it a title.');
-      try { await adm('cup_admin_save', { p_table: 'cup_activities', p_row: row }); await loadAdmin(); } catch (x) { alert('Not saved: ' + x.message); }
+      if (!row.title) return toast('Give it a title.');
+      try { await adm('cup_admin_save', { p_table: 'cup_activities', p_row: row }); await loadAdmin(); } catch (x) { toast('Not saved: ' + x.message); }
     };
     const d = box.querySelector('[data-adel]');
-    if (d) d.onclick = async () => { if (!confirm('Delete this activity?')) return; try { await adm('cup_admin_delete', { p_table: 'cup_activities', p_id: box.dataset.act }); await loadAdmin(); } catch (x) { alert('Could not delete (it probably has submissions). Set Active to No instead.'); } };
+    if (d) armed(d, 'Click again to delete', async () => { try { await adm('cup_admin_delete', { p_table: 'cup_activities', p_id: box.dataset.act }); await loadAdmin(); } catch (x) { toast('Could not delete (it probably has submissions). Set Active to No instead.'); } });
   });
 }
 const fieldRow = f => `<div class="fieldrow"><input data-fl placeholder="Label, e.g. Date of training" value="${esc(f.label || '')}">
@@ -446,7 +473,7 @@ function aAccess() {
   wireEditors();
   document.querySelectorAll('[data-cs]').forEach(b => b.onclick = async () => {
     const i = document.querySelector(`[data-cfg="${b.dataset.cs}"]`);
-    try { await adm('cup_admin_set_config', { p_key: b.dataset.cs, p_value: i.value }); b.textContent = 'Saved'; setTimeout(() => b.textContent = 'Save', 1200); } catch (x) { alert(x.message); }
+    try { await adm('cup_admin_set_config', { p_key: b.dataset.cs, p_value: i.value }); b.textContent = 'Saved'; setTimeout(() => b.textContent = 'Save', 1200); } catch (x) { toast(x.message); }
   });
 }
 
