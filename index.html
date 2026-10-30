@@ -1,4 +1,4 @@
-<!-- built 2026-10-30 13:46 UTC -->
+<!-- built 2026-10-30 14:56 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,6 +58,27 @@
   footer{max-width:880px;margin:0 auto;padding:6px 16px 30px;font-size:12px;color:var(--muted)}
   footer a{color:var(--lixil-dark)}
   .hidden{display:none!important}
+  /* desktop / embedded in a wide page: use the room */
+  @media (min-width:900px){
+    body{font-size:16px}
+    header{padding:14px 32px} header img{height:48px} header h1{font-size:22px} header .who{font-size:14px} header button{font-size:14px;padding:6px 14px}
+    .adminbar{padding:8px 32px;font-size:14px}
+    main{max-width:1240px;padding:28px 32px}
+    footer{max-width:1240px;padding:6px 32px 30px;font-size:13px}
+    .card{padding:24px;border-radius:12px;margin-bottom:18px}
+    .card h2{font-size:20px;margin-bottom:10px}
+    .muted.small,.small{font-size:13px}
+    label{font-size:13px}
+    input,select,textarea{padding:10px 12px}
+    .btn{font-size:15px;padding:10px 18px} .btn.sm{font-size:13px;padding:6px 12px}
+    .tab{font-size:16px;padding:12px 20px}
+    table{font-size:15px} th{font-size:12px} td{padding:10px 12px}
+    .pts{font-size:13px}
+    .acts{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}
+    .acts .act:nth-child(2){border-top:0}
+    .center{max-width:520px}
+    .grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))} .stat b{font-size:30px}
+  }
   #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;max-width:90vw;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);background:#fef2f2;color:var(--red);border:1px solid #fecaca}
   #toast.ok{background:#f0fdf4;color:var(--green);border-color:#bbf7d0}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:40}
@@ -188,9 +209,9 @@ function paneSubmit() {
   const phases = S.cat.phases.filter(p => p.activities.length);
   $('#pane').innerHTML = pre() + (phases.length ? phases.slice().reverse().map(p => `<div class="card"><h2>${esc(p.name)}</h2>
     ${p.open ? '' : msg('info', 'This phase has closed.')}
-    ${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div>${a.one_time ? '<div class="muted small"><i>One-time only: counts once per rep.</i></div>' : ''}</div>
+    <div class="acts">${p.activities.map(a => `<div class="act"><div><b>${esc(a.title)}</b><div class="muted small">${esc(a.description || '')}</div>${a.one_time ? '<div class="muted small"><i>One-time only: counts once per rep.</i></div>' : ''}</div>
       <div style="text-align:right"><span class="pts">${ptsLabel(a)}</span><br><br>
-      ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? (a.one_time && (S.my.submissions || []).some(x => x.activity_id === a.id && x.status === 'counted') ? '<span class="muted small">Done &#10003;</span>' : `<button class="btn primary sm" data-a="${a.id}">Submit</button>`) : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div>`).join('')
+      ${p.open && S.cat.today >= S.cat.config.program_start && S.cat.today <= S.cat.config.program_end ? (a.one_time && (S.my.submissions || []).some(x => x.activity_id === a.id && x.status === 'counted') ? '<span class="muted small">Done &#10003;</span>' : `<button class="btn primary sm" data-a="${a.id}">Submit</button>`) : ''}</div></div>`).join('') || '<p class="muted">No activities yet.</p>'}</div></div>`).join('')
     : '<div class="card muted">Activities will show up here when the program starts.</div>');
   document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => openForm(b.dataset.a));
 }
