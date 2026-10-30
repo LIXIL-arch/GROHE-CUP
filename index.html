@@ -1,4 +1,4 @@
-<!-- built 2026-10-30 15:32 UTC -->
+<!-- built 2026-10-30 16:32 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -233,7 +233,7 @@ function openForm(id) {
   $('#pane').innerHTML = `<div class="card"><button class="btn sm" id="back">&larr; Back</button>
     <h2 style="margin-top:10px">${esc(a.title)} <span class="pts">${ptsLabel(a)}</span></h2>
     <p class="muted">${esc(a.description || '')}</p>
-    ${a.fields.map(f => `<label>${esc(f.label)}${f.required ? ' *' : ''}</label>` + (f.type === 'longtext' ? `<textarea data-k="${esc(f.key)}"></textarea>` : `<input data-k="${esc(f.key)}" type="${f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}">`)).join('')}
+    ${a.fields.map(f => `<label>${esc(f.label)}${f.required ? ' *' : ''}</label>` + (f.type === 'longtext' ? `<textarea data-k="${esc(f.key)}"></textarea>` : f.type === 'dropdown' ? `<select data-k="${esc(f.key)}"><option value="">Choose...</option>${(f.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>` : `<input data-k="${esc(f.key)}" type="${f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}">`)).join('')}
     ${a.file_mode !== 'none' ? `<label>${esc(a.file_label || 'Photo / file')}${a.file_mode === 'required' ? ' *' : ' (optional)'}</label><input type="file" id="file" accept="image/*,application/pdf"><div class="muted small">Max 10 MB. Only LIXIL admins can see your upload.</div>` : ''}
     <div id="ferr"></div><p style="margin-top:14px"><button class="btn primary" id="sub">Submit</button></p></div>`;
   $('#back').onclick = render;
@@ -459,6 +459,7 @@ function aProgram() {
   document.querySelectorAll('[data-addf]').forEach(b => b.onclick = () => b.previousElementSibling.insertAdjacentHTML('beforeend', fieldRow({})));
   document.querySelectorAll('#pane').forEach(() => 0);
   $('#pane').onclick = e => { if (e.target.dataset.rmf !== undefined) e.target.closest('.fieldrow').remove(); };
+  $('#pane').onchange = e => { if (e.target.matches('[data-ft]')) e.target.closest('.fieldrow').querySelector('[data-fo]').classList.toggle('hidden', e.target.value !== 'dropdown'); };
   document.querySelectorAll('.editrow[data-act]').forEach(box => {
     box.querySelector('[data-asave]').onclick = async () => {
       const row = { id: box.dataset.act || undefined };
@@ -469,7 +470,7 @@ function aProgram() {
       });
       row.fields = [...box.querySelectorAll('.fieldrow')].map(fr => {
         const label = fr.querySelector('[data-fl]').value.trim(); if (!label) return null;
-        return { key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'field', label, type: fr.querySelector('[data-ft]').value, required: fr.querySelector('[data-fr]').value === 'true' };
+        return { key: label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || 'field', label, type: fr.querySelector('[data-ft]').value, options: fr.querySelector('[data-ft]').value === 'dropdown' ? fr.querySelector('[data-fo]').value.split(',').map(x => x.trim()).filter(Boolean) : undefined, required: fr.querySelector('[data-fr]').value === 'true' };
       }).filter(Boolean);
       if (row.qualifies_month) row.qualifies_month = row.qualifies_month.slice(0, 7) + '-01';
       if (!row.title) return toast('Give it a title.');
@@ -480,7 +481,8 @@ function aProgram() {
   });
 }
 const fieldRow = f => `<div class="fieldrow"><input data-fl placeholder="Label, e.g. Date of training" value="${esc(f.label || '')}">
-  <select data-ft style="max-width:110px">${['text', 'longtext', 'date', 'number'].map(t => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+  <select data-ft style="max-width:110px">${['text', 'longtext', 'date', 'number', 'dropdown'].map(t => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+  <input data-fo class="${f.type === 'dropdown' ? '' : 'hidden'}" placeholder="Choices, separated by commas (e.g. S, M, L, XL)" value="${esc((f.options || []).join(', '))}">
   <select data-fr style="max-width:110px"><option value="true" ${f.required !== false ? 'selected' : ''}>Required</option><option value="false" ${f.required === false ? 'selected' : ''}>Optional</option></select>
   <button class="btn sm danger" data-rmf>x</button></div>`;
 function aSwag() {
