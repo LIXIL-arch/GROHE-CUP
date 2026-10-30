@@ -1,4 +1,4 @@
-<!-- built 2026-10-30 15:08 UTC -->
+<!-- built 2026-10-30 15:15 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GROHE Cup</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Size control. Add ?z=1.5 to the link to scale the whole app (0.7 to 2.5). Inside another page (Highspot etc.) it defaults to 1.25.
+(function () { try {
+  var z = parseFloat(new URLSearchParams(location.search).get('z'));
+  if (!(z >= 0.7 && z <= 2.5)) z = (window.self !== window.top && window.innerWidth >= 640) ? 1.25 : 1;
+  if (z !== 1) document.documentElement.style.zoom = z;
+} catch (e) {} })();
+</script>
 <style>
   :root{--lixil:#e95d08;--lixil-dark:#c44e06;--lixil-light:#fdf0e8;--lixil-mid:#fad5bb;--border:#e5e7eb;--surface:#f9fafb;--white:#fff;--text:#111827;--muted:#6b7280;--green:#15803d;--red:#b91c1c}
   *{box-sizing:border-box;margin:0;padding:0}
