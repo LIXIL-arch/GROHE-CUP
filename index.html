@@ -1,4 +1,4 @@
-<!-- built 2026-10-30 16:32 UTC -->
+<!-- built 2026-11-03 14:31 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -164,16 +164,18 @@ function showGate(err) {
       const r = await rpc('cup_check_email', { p_email: e });
       if (!r.allowed) { $('#gerr').innerHTML = msg('err', `That email isn't on the approved list. Contact ${CONTACT.name} (${CONTACT.email}) to get access.`); $('#go').disabled = false; return; }
       S.email = e; sessionStorage.setItem('cup_email', e);
-      if (r.registered) { S.rep = r.rep; await enter(); } else showRegister(r.agency);
+      if (r.registered) { S.rep = r.rep; if (needsContact(r.rep)) showRegister(r.agency, r.rep, true); else await enter(); } else showRegister(r.agency);
     } catch (x) { $('#gerr').innerHTML = msg('err', x.message); $('#go').disabled = false; }
   };
   $('#go').onclick = go; $('#em').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
-function showRegister(agency, existing) {
+const needsContact = r => !r.has_phone || !r.has_address || !r.shirt_size;
+const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+function showRegister(agency, existing, forced) {
   const r = existing || {};
   $('#signout').classList.remove('hidden');
   $('#app').innerHTML = `<div class="center card" style="max-width:520px"><h2>${existing ? 'Update your profile' : 'Register for the GROHE Cup'}</h2>
-    <p class="muted">One quick step, then you can start earning points.</p>
+    <p class="muted">${forced ? 'Quick update: we need a few more details so we can ship your swag and prizes.' : existing ? 'Leave phone or address blank to keep what we have on file.' : 'One quick step, then you can start earning points.'}</p>
     <label>Full name</label><input id="rn" value="${esc(r.name || '')}">
     <div class="row"><div><label>Email</label><input value="${esc(S.email)}" disabled></div>
     <div><label>Agency</label><input value="${esc(agency || r.agency || '')}" disabled></div></div>
@@ -181,13 +183,21 @@ function showRegister(agency, existing) {
       ${['Showroom', 'Counter', 'Projects', 'All'].map(o => `<option ${r.focus === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
     <label>Anything else you cover? <span class="muted">(optional)</span></label><input id="rx" value="${esc(r.focus_note || '')}">
     <label>Market area you cover</label><input id="rm" placeholder="e.g. Atlanta metro, North Texas" value="${esc(r.market || '')}">
+    <div class="row"><div><label>Cell phone #</label><input id="rp" type="tel" autocomplete="tel" placeholder="${r.has_phone ? 'On file (type to replace)' : '555-555-5555'}"></div>
+    <div><label>Shirt size</label><select id="rs"><option value="">Choose...</option>${SIZES.map(o => `<option ${r.shirt_size === o ? 'selected' : ''}>${o}</option>`).join('')}</select></div></div>
+    <label>Ship-to address</label><textarea id="ra" style="min-height:64px" placeholder="${r.has_address ? 'On file (type to replace)' : 'Name or business, street, city, state, ZIP'}"></textarea>
+    <div class="muted small">Only LIXIL admins can see your phone and address. They are used to ship swag and prizes.</div>
     <div id="rerr"></div>
     <p style="margin-top:12px"><button class="btn primary" id="rg">${existing ? 'Save' : 'Register'}</button></p></div>`;
   $('#rg').onclick = async () => {
     if (!$('#rn').value.trim() || !$('#rf').value || !$('#rm').value.trim()) { $('#rerr').innerHTML = msg('err', 'Please fill in name, sales focus and market area.'); return; }
+    const ph = $('#rp').value.trim(), ad = $('#ra').value.trim(), digits = ph.replace(/\D/g, '').length;
+    if (!$('#rs').value) { $('#rerr').innerHTML = msg('err', 'Please pick a shirt size.'); return; }
+    if ((!r.has_phone || ph) && digits < 10) { $('#rerr').innerHTML = msg('err', 'Please enter a cell phone number (10 digits).'); return; }
+    if (!r.has_address && ad.length < 10) { $('#rerr').innerHTML = msg('err', 'Please enter your ship-to address (street, city, state, ZIP).'); return; }
     $('#rg').disabled = true;
     try {
-      const out = await rpc('cup_register', { p_email: S.email, p_name: $('#rn').value, p_focus: $('#rf').value, p_focus_note: $('#rx').value, p_market: $('#rm').value });
+      const out = await rpc('cup_register', { p_email: S.email, p_name: $('#rn').value, p_focus: $('#rf').value, p_focus_note: $('#rx').value, p_market: $('#rm').value, p_phone: ph, p_shirt: $('#rs').value, p_address: ad });
       S.rep = out.rep; await enter();
     } catch (x) { $('#rerr').innerHTML = msg('err', x.message); $('#rg').disabled = false; }
   };
@@ -504,7 +514,13 @@ function aAccess() {
     simpleEditor('Approved email domains', 'cup_domains', [{ k: 'domain', l: 'Domain (no @)' }, { k: 'agency', l: 'Agency name on leaderboard' }, { k: 'show_on_leaderboard', l: 'Show on leaderboard', t: 'bool' }], A.domains,
       'Rename an agency here and it updates for everyone at that domain the next time they open the app. Two domains with the same agency name combine into one agency.') +
     simpleEditor('Individually approved emails', 'cup_allowed_emails', [{ k: 'email', l: 'Email' }, { k: 'agency', l: 'Agency name' }, { k: 'show_on_leaderboard', l: 'Show on leaderboard', t: 'bool' }], A.emails) +
-    `<div class="card"><h2>Registered reps (${A.reps.length})</h2><table><tr><th>Name</th><th>Agency</th><th>Focus</th><th>Market</th></tr>${A.reps.map(r => `<tr><td>${esc(r.name)}<br><span class="muted small">${esc(r.email)}</span></td><td>${esc(r.agency)}</td><td>${esc(r.focus)}${r.focus_note ? '<br><span class="muted small">' + esc(r.focus_note) + '</span>' : ''}</td><td>${esc(r.market)}</td></tr>`).join('')}</table></div>`;
+    `<div class="card"><h2>Registered reps (${A.reps.length})</h2><table><tr><th>Name</th><th>Agency</th><th>Focus</th><th>Market</th><th>Phone</th><th>Shirt</th><th>Ship to</th></tr>${A.reps.map(r => `<tr><td>${esc(r.name)}<br><span class="muted small">${esc(r.email)}</span></td><td>${esc(r.agency)}</td><td>${esc(r.focus)}${r.focus_note ? '<br><span class="muted small">' + esc(r.focus_note) + '</span>' : ''}</td><td>${esc(r.market)}</td><td>${esc(r.phone || '')}</td><td>${esc(r.shirt_size || '')}</td><td>${esc(r.ship_address || '')}</td></tr>`).join('')}</table><p style="margin-top:10px"><button class="btn sm" id="repcsv">Download reps + shipping info (CSV)</button></p></div>`;
+  $('#repcsv').onclick = () => {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const rows = [['Name', 'Email', 'Agency', 'Focus', 'Market', 'Cell phone', 'Shirt size', 'Ship-to address']].concat(A.reps.map(r => [r.name, r.email, r.agency, r.focus, r.market, r.phone, r.shirt_size, r.ship_address]));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map(x => x.map(q).join(',')).join('\r\n')], { type: 'text/csv' }));
+    a.download = 'grohe-cup-reps.csv'; a.click();
+  };
   wireEditors();
   document.querySelectorAll('[data-cs]').forEach(b => b.onclick = async () => {
     const i = document.querySelector(`[data-cfg="${b.dataset.cs}"]`);
@@ -538,7 +554,7 @@ $('#signout').onclick = () => { sessionStorage.removeItem('cup_email'); S.email 
     const r = await rpc('cup_check_email', { p_email: saved });
     if (!r.allowed) return showGate();
     S.email = saved;
-    if (r.registered) { S.rep = r.rep; await enter(); } else showRegister(r.agency);
+    if (r.registered) { S.rep = r.rep; if (needsContact(r.rep)) showRegister(r.agency, r.rep, true); else await enter(); } else showRegister(r.agency);
   } catch (x) { showGate(x.message); }
 })();
 </script>
