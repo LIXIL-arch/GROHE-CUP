@@ -1,4 +1,4 @@
-<!-- built 2026-11-03 14:31 UTC -->
+<!-- built 2026-11-07 14:58 UTC -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -344,10 +344,47 @@ $('#adminexit').onclick = async () => {
 const adm = (fn, args) => rpc(fn, { p_code: S.adminCode, ...args });
 
 function renderAdmin() {
-  const tabs = [['review', 'Submissions'], ['insights', 'Insights'], ['program', 'Activities & phases'], ['swagp', 'Swag, prizes, awards'], ['access', 'Access & settings']];
+  const tabs = [['review', 'Submissions'], ['board', 'Leaderboard'], ['insights', 'Insights'], ['program', 'Activities & phases'], ['swagp', 'Swag, prizes, awards'], ['access', 'Access & settings']];
   $('#app').innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.adminTab === k ? 'on' : ''}" data-t="${k}">${l}</button>`).join('')}</div><div id="pane"></div>`;
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.adminTab = b.dataset.t; renderAdmin(); });
-  ({ review: aReview, insights: aInsights, program: aProgram, swagp: aSwag, access: aAccess })[S.adminTab]();
+  ({ review: aReview, board: aBoard, insights: aInsights, program: aProgram, swagp: aSwag, access: aAccess })[S.adminTab]();
+}
+function aBoard() {
+  const A = S.admin, mode = S.abMode || (S.abMode = 'reps'), mo = S.abMonth || '';
+  const etMonth = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).slice(0, 7);   // YYYY-MM
+  const want = mo ? mo.slice(0, 7) : null;
+  const pts = {}, subs = {};
+  A.submissions.filter(x => x.status === 'counted' && (!want || etMonth(x.created_at) === want)).forEach(x => { pts[x.rep_email] = (pts[x.rep_email] || 0) + x.points; subs[x.rep_email] = (subs[x.rep_email] || 0) + 1; });
+  const reps = A.reps.map(r => ({ name: r.name, agency: r.agency, hidden: r.show_on_leaderboard === false, points: pts[r.email] || 0, subs: subs[r.email] || 0 }))
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  const ag = {};
+  reps.filter(r => !r.hidden).forEach(r => { const a = ag[r.agency] || (ag[r.agency] = { agency: r.agency, reps: 0, rp: 0, aw: 0 }); a.reps++; a.rp += r.points; });
+  A.awards.filter(w => !want || String(w.awarded_on).slice(0, 7) === want).forEach(w => { const a = ag[w.agency] || (ag[w.agency] = { agency: w.agency, reps: 0, rp: 0, aw: 0 }); a.aw += w.points; });
+  const agencies = Object.values(ag).map(a => ({ ...a, points: a.rp + a.aw })).sort((a, b) => b.points - a.points || a.agency.localeCompare(b.agency));
+  const months = A.swag.map(x => x.month);
+  let body;
+  if (mode === 'reps') {
+    const rows = reps.filter(r => r.points > 0 || r.subs > 0);
+    body = rows.length ? `<table><tr><th>#</th><th>Rep</th><th>Agency</th><th style="text-align:right">Activities</th><th style="text-align:right">Points</th></tr>${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}${r.hidden ? ' <span class="tag">hidden from public board</span>' : ''}</td><td>${esc(r.agency)}</td><td style="text-align:right">${r.subs}</td><td style="text-align:right"><b>${r.points}</b></td></tr>`).join('')}</table>` : 'No points yet.';
+  } else {
+    const rows = agencies.filter(a => a.points > 0 || a.reps > 0);
+    body = rows.length ? `<table><tr><th>#</th><th>Agency</th><th style="text-align:right">Reps</th><th style="text-align:right">Rep points</th><th style="text-align:right">Bonus</th><th style="text-align:right">Points</th></tr>${rows.map((a, i) => `<tr><td>${i + 1}</td><td>${esc(a.agency)}</td><td style="text-align:right">${a.reps}</td><td style="text-align:right">${a.rp}</td><td style="text-align:right">${a.aw}</td><td style="text-align:right"><b>${a.points}</b></td></tr>`).join('')}</table>` : 'No agency points yet.';
+  }
+  $('#pane').innerHTML = `<div class="card"><div class="row" style="align-items:center">
+    <div class="seg"><button data-am="reps" class="${mode === 'reps' ? 'on' : ''}">Reps</button><button data-am="agencies" class="${mode === 'agencies' ? 'on' : ''}">Agencies</button></div>
+    <select id="abm" style="max-width:220px"><option value="">Whole program</option>${months.map(m => `<option value="${m}" ${mo === m ? 'selected' : ''}>${fmtMonth(m)}</option>`).join('')}</select>
+    <button class="btn sm" id="abcsv">Download CSV</button></div>
+    <p class="muted small" style="margin-top:8px">Same numbers reps see, but live from the admin data. Removed submissions don't count.</p>
+    <div style="margin-top:8px">${body}</div></div>`;
+  document.querySelectorAll('[data-am]').forEach(b => b.onclick = () => { S.abMode = b.dataset.am; aBoard(); });
+  $('#abm').onchange = e => { S.abMonth = e.target.value; aBoard(); };
+  $('#abcsv').onclick = () => {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const rows = mode === 'reps' ? [['Rank', 'Rep', 'Agency', 'Activities', 'Points']].concat(reps.filter(r => r.points > 0 || r.subs > 0).map((r, i) => [i + 1, r.name, r.agency, r.subs, r.points]))
+      : [['Rank', 'Agency', 'Reps', 'Rep points', 'Bonus', 'Points']].concat(agencies.filter(a => a.points > 0 || a.reps > 0).map((a, i) => [i + 1, a.agency, a.reps, a.rp, a.aw, a.points]));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map(x => x.map(q).join(',')).join('\r\n')], { type: 'text/csv' }));
+    a.download = 'grohe-cup-leaderboard-' + mode + '.csv'; a.click();
+  };
 }
 function aReview() {
   const A = S.admin, f = S.af || (S.af = { q: '', st: 'all' });
@@ -386,17 +423,10 @@ function aReview() {
 async function exportCsv() {
   const btn = $('#csv'); btn.disabled = true; btn.textContent = 'Building CSV...';
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  let urls = {};
-  try {
-    const paths = S.admin.submissions.map(s => s.file_path).filter(Boolean);
-    if (paths.length) {
-      const { data, error } = await db.functions.invoke('admin-file', { body: { code: S.adminCode, paths } });
-      if (error || !data?.urls) throw new Error(data?.error || error?.message || 'no links');
-      urls = data.urls;
-    }
-  } catch (x) { toast('CSV will be built without proof links. ' + x.message); }
-  const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Proof link (expires in 7 days)']].concat(S.admin.submissions.map(s =>
-    [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? (urls[s.file_path] || 'has proof (link unavailable)') : '']));
+  // Proof links never expire: they open this app, ask for the admin code, then show the private file.
+  const base = location.origin + location.pathname, link = p => base + '?proof=' + encodeURIComponent(p);
+  const rows = [['Date', 'Rep', 'Email', 'Agency', 'Activity', 'Points', 'Status', 'Details', 'Proof link (asks for admin code)']].concat(S.admin.submissions.map(s =>
+    [s.created_at, s.rep_name, s.rep_email, s.agency, s.activity_title, s.points, s.status, Object.entries(s.data || {}).map(([k, v]) => k + ': ' + v).join('; '), s.file_path ? link(s.file_path) : '']));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' }));
   a.download = 'grohe-cup-submissions.csv'; a.click();
@@ -545,8 +575,26 @@ setInterval(() => { if (!document.hidden) autoRefresh(true); }, 120000);
 
 // ---------------- boot ----------------
 $('#signout').onclick = () => { sessionStorage.removeItem('cup_email'); S.email = S.rep = null; showGate(); };
+function proofViewer(path) {
+  $('#signout').classList.add('hidden');
+  $('#app').innerHTML = `<div class="center card" style="max-width:520px"><h2>View proof</h2><p class="muted">Admins only. Enter the admin code to open this file.</p>
+    <label>Admin code</label><input id="pcode" type="password" autocomplete="off"><div id="perr"></div>
+    <p style="margin-top:12px"><button class="btn primary" id="pgo">Open</button></p></div>`;
+  $('#pcode').focus();
+  const go = async () => {
+    const code = $('#pcode').value; if (!code) return; $('#pgo').disabled = true;
+    try {
+      const { data, error } = await db.functions.invoke('admin-file', { body: { code, path } });
+      if (error || !data?.url) throw new Error(data?.error === 'Unauthorized' ? 'Wrong code.' : (data?.error || error?.message || 'Could not open the file.'));
+      location.replace(data.url);
+    } catch (x) { $('#perr').innerHTML = msg('err', x.message); $('#pgo').disabled = false; }
+  };
+  $('#pgo').onclick = go; $('#pcode').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
 (async function boot() {
   footer();
+  const proof = new URLSearchParams(location.search).get('proof');
+  if (proof && /^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,120}$/.test(proof)) return proofViewer(proof);
   if (SUPABASE_URL.startsWith('PASTE')) { $('#app').innerHTML = msg('err', 'Setup not finished: open index.html and paste your Supabase URL and key at the top of the script.'); return; }
   const saved = sessionStorage.getItem('cup_email');
   if (!saved) return showGate();
